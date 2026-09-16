@@ -1,4 +1,27 @@
-# StringLane
+<p align="center">
+  <a href="https://stringlane.app">
+    <img src="https://stringlane.app/readme/plugin.png" alt="StringLane for coding agents — localization on autopilot, locally. Flutter ARB, iOS .strings / .xcstrings, Android XML, i18next JSON." width="960">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://stringlane.app">Website</a> ·
+  <a href="https://stringlane.app/docs/cli/agent-setup">Agent setup</a> ·
+  <a href="https://stringlane.app/docs/reference/mcp-tools">MCP tools</a> ·
+  <a href="https://stringlane.app/product/desktop">Desktop app</a> ·
+  <a href="https://stringlane.app/release-notes">Release notes</a>
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@stringlane/cli"><img alt="stringlane CLI on npm" src="https://img.shields.io/npm/v/%40stringlane%2Fcli?label=stringlane%20cli&color=00C896&labelColor=0C0E13"></a>
+  <img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-00C896?labelColor=0C0E13">
+</p>
+
+<p align="center">
+  <sub>Free of charge · no account · no import step, no export step — your files stay where they are</sub>
+</p>
+
+---
 
 Localization for coding agents: an MCP server over your locale files, plus a
 write guard that asks before an agent hand-edits them.
