@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "stringlane": {
+      "command": "stringlane",
+      "args": ["mcp", "."]
+    }
+  }
+}

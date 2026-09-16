@@ -1,0 +1,15 @@
+{
+  "name": "stringlane",
+  "version": "0.1.0",
+  "description": "Localization for coding agents: an MCP server for your locale files, plus a write guard that asks before an agent hand-edits them. Flutter ARB, iOS .strings/.xcstrings, Android XML, i18next JSON. On Windows, install @stringlane/cli globally first — the bundled resolver is a POSIX shell script.",
+  "mcpServers": {
+    "stringlane": {
+      "command": "stringlane",
+      "args": [
+        "mcp",
+        "."
+      ]
+    }
+  },
+  "contextFileName": "GEMINI.md"
+}

