@@ -118,12 +118,15 @@ stringlane setup hooks --host claude-code
 prints the hooks and writes nothing.
 
 **`--host` is the host you are actually running in**, and it is not always
-`claude-code`. This plugin ships one hooks document, in Claude Code's schema,
-which Claude Code loads and Codex's discovery is documented to find — so on both
-of those `--host claude-code` is the right question to ask. **On Gemini CLI it
-is not**: the extension declares no hooks at all, so the guard is not installed
-by the plugin and `--host gemini-cli` is what to run. Same for anyone here
-through the CLI rather than the plugin — `--host cursor`, `--host vscode`.
+`claude-code`. This plugin ships two hooks documents: Claude Code loads one,
+and **Codex CLI loads its own**, which runs `--host codex` — Codex has no "ask",
+so there the guard refuses a hand-edit and says how to lift it. **On Codex,
+plugin hooks do not run until the user trusts them**: tell them to open `/hooks`
+in Codex, review the StringLane hook and trust it. Until they do, nothing is
+guarded and nothing says so. **On Gemini CLI** the extension declares no hooks
+at all, so the guard is not installed by the plugin and `--host gemini-cli` is
+what to run. Same for anyone here through the CLI rather than the plugin —
+`--host cursor`, `--host vscode`.
 
 Every one of those prints. Only `--host claude-code` writes with `--apply`
 today; the rest print and you paste, which is the same bytes. `--remove` works

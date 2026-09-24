@@ -90,12 +90,12 @@ them — same server, same version, one extra paste.
 | Host | Install | MCP server | Write guard |
 |---|---|---|---|
 | Claude Code | plugin | ✅ | ✅ installed with it |
-| Codex CLI | plugin | ✅ | ✅ ships with it |
+| Codex CLI | plugin | ✅ | ✅ ships with it; trust it in `/hooks` |
 | Gemini CLI | extension | ✅ | paste † |
 | Cursor | CLI + paste | ✅ | paste † |
 | VS Code Copilot | CLI + `code --add-mcp` | ✅ | paste, but inert ‡ |
 | GitHub Copilot CLI | CLI + paste | ✅ | paste, but inert ‡ |
-| Windsurf | CLI + paste | ✅ | none — see below |
+| Windsurf | CLI + paste | ✅ | paste † |
 | Zed | CLI + paste | ✅ | permission block |
 | OpenCode | CLI + paste | ✅ | permission block |
 
@@ -150,11 +150,13 @@ repository, generated from the same source as the Claude Code ones. The four
 slash commands arrive as skills — `/stringlane:setup` is `stringlane-setup`
 here — because Codex does not load a `commands/` directory.
 
-`hooks/hooks.json` is the file Codex's own discovery is documented to find, and
-it is the same document Claude Code installs. Which paths that discovery
-actually scans is described rather than enumerated in the spec, so if the plugin
-install does not pick the guard up, `stringlane setup hooks --host codex` prints
-the same document and the file to put it in.
+The manifest points Codex at its own hooks document, `hooks/hooks-codex.json`,
+which runs the guard in Codex's dialect: Codex has no "ask", so a hand-edit to a
+locale file is **refused**, and the refusal says how to lift it. **Codex runs a
+plugin's hooks only after you trust them** — open `/hooks` in Codex, review the
+StringLane hook and trust it. If the plugin install does not pick the guard up,
+`stringlane setup hooks --host codex` prints the same wiring and the file to put
+it in.
 
 ### Gemini CLI
 
@@ -240,10 +242,11 @@ a locale file added later is uncovered until you run it again. Paste it in
 yourself — both files are JSONC, and StringLane will not rewrite a file whose
 comments its parser would discard.
 
-**Windsurf gets no guard, and that is a decision rather than a gap.** Its
-pre-write hook is exit-code only, with no message back to the model. A silent
-block teaches the agent nothing, so it routes around it through the shell —
-which is worse than not blocking, because you believe you are guarded.
+**Windsurf's guard refuses by exit code.** `stringlane setup hooks --host
+windsurf` prints a pre-write hook; when it exits 2 Windsurf blocks the
+write and shows the agent the reason, which names
+`stringlane setup hooks --host windsurf --remove` as the way out. Paste the
+command exactly — a `; exit 0` after it would turn every refusal into a pass.
 
 ### GitHub Copilot CLI
 
