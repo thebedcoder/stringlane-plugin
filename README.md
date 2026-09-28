@@ -250,6 +250,23 @@ write and shows the agent the reason, which names
 `stringlane setup hooks --host windsurf --remove` as the way out. Paste the
 command exactly — a `; exit 0` after it would turn every refusal into a pass.
 
+**The skills come from the CLI too**, into your repository rather than from a
+plugin:
+
+```sh
+stringlane setup skills --apply
+```
+
+That writes this directory's skills into `.agents/skills/`, one `stringlane-*`
+folder each. StringLane's host table records every host above as reading that
+directory, but none of them has been confirmed doing so in a recorded session, so
+check that the skills show up. `stringlane-setup` is left out, because it diagnoses this plugin, and
+references to `/stringlane:<command>` become the matching `stringlane-<command>`
+skill. Every file is stamped with the CLI version that wrote it: running the
+command again after an upgrade replaces a stale copy, a copy somebody edited — or
+one a newer CLI wrote — is left alone, and `--remove` deletes only unedited ones.
+`stringlane check` tells you when the copies are older than your CLI.
+
 ### GitHub Copilot CLI
 
 No plugin install, and that is not an oversight either. Copilot CLI's plugin
