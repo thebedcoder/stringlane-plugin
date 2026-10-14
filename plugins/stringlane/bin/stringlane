@@ -9,7 +9,7 @@
 # Order, most-specific first:
 #   1. a `stringlane` already on PATH  — a global install, or a dev checkout
 #   2. the project's own node_modules  — a repo that pins its own version
-#   3. `npx -y @stringlane/cli`        — nothing installed, fetch on demand
+#   3. `npx -y @stringlane/cli@<pin>`  — nothing installed, fetch on demand
 #
 # EXITS 0 WHEN ALL THREE ARE EXHAUSTED, and writes nothing to stdout (AC-2).
 # A shim that exits non-zero turns a missing CLI into a BLOCKED EDIT: the hook
@@ -218,12 +218,19 @@ fi
 #
 # This does not make a hostile project harmless — it makes it unable to choose
 # where THIS command's package comes from.
+#
+# The VERSION is pinned for the same reason, one step further: an unpinned spec
+# runs whatever is published next, which is a release nobody tested this plugin
+# against, and the plugin directory refuses an unpinned launcher outright. The
+# pin IS `apps/cli/package.json`'s version, bumped in the same commit as the
+# CLI release (`docs/RELEASING.md` §4); `plugin-shim.test.ts` fails when the two
+# differ, and `sync-plugin.yml` refuses to publish a pin npm does not have yet.
 # ---------------------------------------------------------------------------
 if command -v npx >/dev/null 2>&1; then
   dispatch npx -y \
     --registry=https://registry.npmjs.org/ \
     --@stringlane:registry=https://registry.npmjs.org/ \
-    @stringlane/cli "$@"
+    @stringlane/cli@0.7.0 "$@"
 fi
 
 # Nothing to run. Let the edit proceed under the user's normal permission rules

@@ -29,7 +29,12 @@ StringLane at a path with `stringlane.yaml`. Show no stack trace.
 
 If there is no `stringlane.yaml`, show exactly what `stringlane init` would
 write, and ask. It records the path and format so every later command agrees
-about them.
+about them. For a project with no config that loads cleanly, `stringlane init`
+also turns source stamps on and writes `.stringlane/source-stamps.json`, stamping
+the translations the project already holds as current against today's base text.
+Tell the user which files it wrote (both, unless `stringlane init` says source
+stamps were not turned on or that the stamps file already held every stamp), and
+that they should commit both.
 
 ## 3. Report the state plainly
 

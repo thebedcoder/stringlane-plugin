@@ -4,13 +4,13 @@
     "name": "StringLane",
     "url": "https://stringlane.app"
   },
-  "description": "Localization for coding agents — an MCP server for your locale files, plus a write guard.",
+  "description": "Localization for coding agents: an MCP server for your locale files, plus a write guard.",
   "plugins": [
     {
       "name": "stringlane",
       "source": "./plugins/stringlane",
-      "description": "Localization for coding agents: an MCP server for your locale files, plus a write guard that asks before an agent hand-edits them. Flutter ARB, iOS .strings/.xcstrings, Android XML, i18next JSON. On Windows, install @stringlane/cli globally first — the bundled resolver is a POSIX shell script.",
-      "version": "0.2.0",
+      "description": "Localization for coding agents: an MCP server for your locale files, plus a write guard that asks before an agent hand-edits them. Flutter ARB, iOS .strings/.xcstrings, Android XML, i18next JSON. On Windows, install @stringlane/cli globally first, because the bundled resolver is a POSIX shell script.",
+      "version": "0.3.0",
       "author": {
         "name": "StringLane"
       },
