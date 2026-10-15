@@ -230,7 +230,7 @@ if command -v npx >/dev/null 2>&1; then
   dispatch npx -y \
     --registry=https://registry.npmjs.org/ \
     --@stringlane:registry=https://registry.npmjs.org/ \
-    @stringlane/cli@0.7.0 "$@"
+    @stringlane/cli@0.8.0 "$@"
 fi
 
 # Nothing to run. Let the edit proceed under the user's normal permission rules
