@@ -34,11 +34,11 @@ no account, and no copy of your strings anywhere but your repository.
 
 ## What your agent gets
 
-**Ten MCP tools.** `inspect_project` for the state of a project,
+**Eleven MCP tools.** `inspect_project` for the state of a project,
 `read_translations` and `describe_keys` for what a key says and means,
 `read_key_usage` for where the code calls it, then the three that do the work,
 `prepare_translation_plan`, `validate_translations` and `apply_translations`, plus
-`add_key`, `add_locale` and `set_project_context`.
+`add_key`, `pluralize_key`, `add_locale` and `set_project_context`.
 
 Four of the five formats escape, prefix or nest their values, so the bytes on
 disk are not the string. Every read goes through the parser and every write
@@ -85,7 +85,7 @@ for plurals, metadata, placeholders and ICU across the five.
 ## Install
 
 Two ways in, and which one you get is the host's decision rather than ours.
-Three hosts load this repository directly. The rest have no plugin format this
+Four hosts load this repository directly. The rest have no plugin format this
 directory fits, so they install the CLI and take a config entry printed for
 them. Same server, same version, one extra paste.
 
@@ -94,7 +94,7 @@ them. Same server, same version, one extra paste.
 | Claude Code | plugin | ✅ | ✅ installed with it |
 | Codex CLI | plugin | ✅ | ✅ ships with it; trust it in `/hooks` |
 | Gemini CLI | extension | ✅ | paste † |
-| Cursor | CLI + paste | ✅ | paste † |
+| Cursor | plugin, or CLI + paste | ✅ | ships with the plugin; paste † without it |
 | VS Code Copilot | CLI + `code --add-mcp` | ✅ | paste, but inert ‡ |
 | GitHub Copilot CLI | CLI + paste | ✅ | paste, but inert ‡ |
 | Windsurf | CLI + paste | ✅ | paste † |
@@ -162,17 +162,16 @@ it in.
 
 ### Gemini CLI
 
-An extension, and it installs from a path rather than the repository URL:
+An extension, installed from this repository's URL:
 
 ```sh
-git clone https://github.com/thebedcoder/stringlane-plugin
-gemini extensions install ./stringlane-plugin/plugins/stringlane
+gemini extensions install https://github.com/thebedcoder/stringlane-plugin
 ```
 
-`gemini extensions install <repository-url>` expects `gemini-extension.json` at
-the repository ROOT. This repository keeps the plugin in a subdirectory so that
-one copy serves every host, so the documented local-path form is the one to
-use. Same bytes, same version.
+Gemini installs the latest release of this repository. Each release carries one
+archive: the `plugins/stringlane` directory, with `gemini-extension.json` at its
+root. Same bytes, same version, and Gemini's update check follows the release
+tags.
 
 The extension brings the MCP server and `GEMINI.md`. It declares **no hooks**,
 because an extension manifest is not where Gemini reads them from, so the guard is one
@@ -188,7 +187,28 @@ use instead and carries
 `stringlane setup hooks --host gemini-cli --remove` in the same message. A
 refusal you cannot lift is one people turn off for good.
 
-### Cursor, Windsurf, Zed, OpenCode, VS Code Copilot
+### Cursor
+
+A plugin: `.cursor-plugin/plugin.json` in the plugin directory, indexed by
+`.cursor-plugin/marketplace.json` at this repository's root. It brings the MCP
+server, the four commands, the skills and the write guard, which registers on
+`preToolUse` and `sessionStart` (`hooks/hooks-cursor.json`). Cursor's hook
+protocol has no "ask", so a hand edit to a locale file is refused, and the
+refusal names the tool to use instead. If StringLane is wrong about a file,
+disable or uninstall the plugin under Customize: `setup hooks --remove` does not
+reach a hook the plugin ships.
+
+The Cursor Marketplace listing is not live yet. Until it is, install it the
+way Cursor documents for a local plugin, then reload the window:
+
+```sh
+git clone https://github.com/thebedcoder/stringlane-plugin
+cp -R stringlane-plugin/plugins/stringlane ~/.cursor/plugins/local/stringlane
+```
+
+Or skip the plugin and take the config entry, as in the next section.
+
+### Windsurf, Zed, OpenCode, VS Code Copilot, and Cursor without the plugin
 
 No plugin, one command. Install the CLI, then ask it for the entry:
 

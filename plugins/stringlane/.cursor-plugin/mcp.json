@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "stringlane": {
+      "command": "${CURSOR_PLUGIN_ROOT}/bin/stringlane",
+      "args": [
+        "mcp",
+        "."
+      ]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": "${CURSOR_PLUGIN_ROOT}/bin/stringlane hook --host cursor",
+        "matcher": "Write|Delete"
+      }
+    ],
+    "sessionStart": [
+      {
+        "command": "${CURSOR_PLUGIN_ROOT}/bin/stringlane hook --host cursor"
+      }
+    ]
+  }
+}

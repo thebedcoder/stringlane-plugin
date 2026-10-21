@@ -51,6 +51,13 @@
 is_hook=no
 if [ "${1:-}" = "hook" ]; then
   is_hook=yes
+  # GH #503. This shim stands in front of the plugin's hooks and of nothing
+  # `setup hooks` writes, so it is what tells the CLI whose hook is refusing —
+  # and a refusal names the off-switch for that install (`HOOK_ORIGIN_ENV` in
+  # `hook-command.ts`). A variable rather than a flag: a CLI too old for it
+  # ignores it and keeps guarding, where an unknown flag would be exit 2.
+  STRINGLANE_HOOK_ORIGIN=plugin
+  export STRINGLANE_HOOK_ORIGIN
 fi
 
 # ---------------------------------------------------------------------------
@@ -230,7 +237,7 @@ if command -v npx >/dev/null 2>&1; then
   dispatch npx -y \
     --registry=https://registry.npmjs.org/ \
     --@stringlane:registry=https://registry.npmjs.org/ \
-    @stringlane/cli@0.8.0 "$@"
+    @stringlane/cli@0.9.0 "$@"
 fi
 
 # Nothing to run. Let the edit proceed under the user's normal permission rules
